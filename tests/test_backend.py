@@ -685,17 +685,16 @@ class TestChatEndpoint:
 
     @pytest.mark.openai
     def test_chat_api_valid_question(self, doctor_client):
-        """Valid clinic question returns answer (requires OpenAI API)."""
+        """Valid clinic question returns answer (requires OpenAI API).
+        Semicolon bug was fixed — sql.rstrip(';') in chat_service.py."""
         resp = doctor_client.post('/api/chat',
             data=json.dumps({'question': 'כמה מטופלים יש במערכת?'}),
             content_type='application/json')
         data = resp.get_json()
         assert data['success'] is True
         result = data['data']
-        # Either succeeds with answer or documents the semicolon bug
-        if result.get('error'):
-            pytest.xfail(f'Known chat issue: {result["error"]}')
         assert result['answer'] is not None
+        assert result.get('error') is None, f'Chat still failing: {result.get("error")}'
 
 
 # ============================================================
@@ -720,9 +719,6 @@ class TestErrorHandling:
 
     def test_api_invalid_uuid(self, doctor_client):
         """Invalid UUID in URL should be handled gracefully.
-        BUG: Route does not catch Supabase APIError for invalid UUID."""
-        try:
-            resp = doctor_client.get('/patients/not-a-uuid', follow_redirects=True)
-            assert resp.status_code in [200, 302, 400, 404, 500]
-        except Exception:
-            pytest.xfail('BUG: Invalid UUID causes unhandled Supabase APIError (no try/except in detail route)')
+        FIX APPLIED: Added try/except in patients detail route."""
+        resp = doctor_client.get('/patients/not-a-uuid', follow_redirects=True)
+        assert resp.status_code == 200  # Redirects to patients list with flash message

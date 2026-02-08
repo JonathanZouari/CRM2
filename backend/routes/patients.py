@@ -17,7 +17,10 @@ def list_patients():
 @patients_bp.route('/patients/<patient_id>')
 @login_required
 def detail(patient_id):
-    patient = patient_service.get_patient(patient_id)
+    try:
+        patient = patient_service.get_patient(patient_id)
+    except Exception:
+        patient = None
     if not patient:
         flash('המטופל לא נמצא', 'danger')
         return redirect(url_for('patients.list_patients'))

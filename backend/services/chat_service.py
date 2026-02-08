@@ -99,6 +99,7 @@ def generate_sql(question: str) -> str:
 
     sql = response.choices[0].message.content.strip()
     sql = sql.replace('```sql', '').replace('```', '').strip()
+    sql = sql.rstrip(';')
     return sql
 
 
