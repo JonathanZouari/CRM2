@@ -1,47 +1,38 @@
-from flask import Blueprint, render_template, request, redirect, url_for, session, flash
+from flask import Blueprint, request, jsonify, g
 from backend.services.auth_service import authenticate_user
+from backend.middleware.jwt_middleware import create_token
+from backend.middleware.auth_middleware import login_required
 
 auth_bp = Blueprint('auth', __name__)
 
 
-@auth_bp.route('/login', methods=['GET', 'POST'])
+@auth_bp.route('/login', methods=['POST'])
 def login():
-    if 'user_id' in session:
-        return redirect(url_for('dashboard.index'))
+    data = request.get_json()
+    if not data:
+        return jsonify({'success': False, 'error': 'יש לשלוח נתונים בפורמט JSON'}), 400
 
-    if request.method == 'POST':
-        email = request.form.get('email', '').strip()
-        password = request.form.get('password', '')
+    email = (data.get('email') or '').strip()
+    password = data.get('password') or ''
 
-        if not email or not password:
-            flash('יש למלא את כל השדות', 'warning')
-            return render_template('auth/login.html')
+    if not email or not password:
+        return jsonify({'success': False, 'error': 'יש למלא את כל השדות'}), 400
 
-        user = authenticate_user(email, password)
-        if user is None:
-            flash('אימייל או סיסמה שגויים', 'danger')
-            return render_template('auth/login.html')
+    user = authenticate_user(email, password)
+    if user is None:
+        return jsonify({'success': False, 'error': 'אימייל או סיסמה שגויים'}), 401
 
-        session['user_id'] = user['id']
-        session['user_email'] = user['email']
-        session['user_name'] = user['full_name']
-        session['user_role'] = user['role']
-
-        flash(f'שלום, {user["full_name"]}!', 'success')
-        return redirect(url_for('dashboard.index'))
-
-    return render_template('auth/login.html')
+    token = create_token(user)
+    return jsonify({
+        'success': True,
+        'data': {
+            'token': token,
+            'user': user,
+        },
+    })
 
 
-@auth_bp.route('/logout')
-def logout():
-    session.clear()
-    flash('התנתקת בהצלחה', 'info')
-    return redirect(url_for('auth.login'))
-
-
-@auth_bp.route('/')
-def root():
-    if 'user_id' in session:
-        return redirect(url_for('dashboard.index'))
-    return redirect(url_for('auth.login'))
+@auth_bp.route('/me')
+@login_required
+def me():
+    return jsonify({'success': True, 'data': g.user})

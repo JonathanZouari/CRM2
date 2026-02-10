@@ -1,20 +1,20 @@
-from flask import Blueprint, render_template, request, jsonify
+from flask import Blueprint, request, jsonify
 from backend.middleware.auth_middleware import login_required
 from backend.services import catalog_service
 
 services_bp = Blueprint('services', __name__)
 
 
-@services_bp.route('/services')
+@services_bp.route('/')
 @login_required
 def list_services():
     search = request.args.get('search', '')
     page = int(request.args.get('page', 1))
     result = catalog_service.get_services(search=search, page=page)
-    return render_template('services/list.html', **result, search=search)
+    return jsonify({'success': True, 'data': result, 'search': search})
 
 
-@services_bp.route('/api/services', methods=['POST'])
+@services_bp.route('/', methods=['POST'])
 @login_required
 def create():
     data = request.get_json()
@@ -24,7 +24,7 @@ def create():
     return jsonify({'success': False, 'error': 'שגיאה ביצירת שירות'}), 400
 
 
-@services_bp.route('/api/services/<service_id>', methods=['PUT'])
+@services_bp.route('/<service_id>', methods=['PUT'])
 @login_required
 def update(service_id):
     data = request.get_json()
@@ -34,7 +34,7 @@ def update(service_id):
     return jsonify({'success': False, 'error': 'שגיאה בעדכון שירות'}), 400
 
 
-@services_bp.route('/api/services/<service_id>', methods=['DELETE'])
+@services_bp.route('/<service_id>', methods=['DELETE'])
 @login_required
 def delete(service_id):
     try:

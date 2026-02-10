@@ -1,29 +1,26 @@
 import os
-from flask import Flask
+from flask import Flask, jsonify
+from flask_cors import CORS
 
 
 def create_app():
-    root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-
-    app = Flask(
-        __name__,
-        template_folder=os.path.join(root_dir, 'frontend', 'templates'),
-        static_folder=os.path.join(root_dir, 'frontend', 'static'),
-    )
+    app = Flask(__name__)
 
     app.config.from_object('backend.config.Config')
+
+    CORS(app, origins=[
+        os.environ.get('FRONTEND_URL', 'http://localhost:5173'),
+    ], supports_credentials=True)
 
     from backend.routes import register_blueprints
     register_blueprints(app)
 
     @app.errorhandler(404)
     def not_found(e):
-        from flask import render_template
-        return render_template('errors/404.html'), 404
+        return jsonify({'success': False, 'error': 'לא נמצא'}), 404
 
     @app.errorhandler(500)
     def server_error(e):
-        from flask import render_template
-        return render_template('errors/500.html'), 500
+        return jsonify({'success': False, 'error': 'שגיאת שרת פנימית'}), 500
 
     return app

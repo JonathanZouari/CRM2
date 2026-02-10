@@ -10,3 +10,7 @@ build/
 .idea/
 .vscode/
 *.joblib
+node_modules/
+frontend-app/dist/
+.pytest_cache/
+nul

@@ -1,19 +1,25 @@
-from flask import Blueprint, render_template, request, jsonify
+from flask import Blueprint, request, jsonify
 from backend.middleware.auth_middleware import login_required
 from backend.services import task_service
 
 tasks_bp = Blueprint('tasks', __name__)
 
 
-@tasks_bp.route('/tasks')
+@tasks_bp.route('/')
 @login_required
-def kanban():
+def list_tasks():
     grouped = task_service.get_tasks_grouped()
     users = task_service.get_users()
-    return render_template('tasks/kanban.html', tasks=grouped, users=users)
+    return jsonify({
+        'success': True,
+        'data': {
+            'tasks': grouped,
+            'users': users,
+        },
+    })
 
 
-@tasks_bp.route('/api/tasks', methods=['POST'])
+@tasks_bp.route('/', methods=['POST'])
 @login_required
 def create():
     data = request.get_json()
@@ -23,7 +29,7 @@ def create():
     return jsonify({'success': False, 'error': 'שגיאה ביצירת משימה'}), 400
 
 
-@tasks_bp.route('/api/tasks/<task_id>', methods=['PUT'])
+@tasks_bp.route('/<task_id>', methods=['PUT'])
 @login_required
 def update(task_id):
     data = request.get_json()
@@ -33,7 +39,7 @@ def update(task_id):
     return jsonify({'success': False, 'error': 'שגיאה בעדכון משימה'}), 400
 
 
-@tasks_bp.route('/api/tasks/<task_id>/status', methods=['PUT'])
+@tasks_bp.route('/<task_id>/status', methods=['PUT'])
 @login_required
 def update_status(task_id):
     data = request.get_json()
@@ -45,7 +51,7 @@ def update_status(task_id):
     return jsonify({'success': False, 'error': 'שגיאה בעדכון סטטוס'}), 400
 
 
-@tasks_bp.route('/api/tasks/<task_id>', methods=['DELETE'])
+@tasks_bp.route('/<task_id>', methods=['DELETE'])
 @login_required
 def delete(task_id):
     try:

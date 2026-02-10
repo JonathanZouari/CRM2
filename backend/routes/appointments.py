@@ -1,11 +1,33 @@
-from flask import Blueprint, render_template, request, jsonify
+from flask import Blueprint, request, jsonify
 from backend.middleware.auth_middleware import login_required
 from backend.services import appointment_service, catalog_service, patient_service
 
 appointments_bp = Blueprint('appointments', __name__)
 
 
-@appointments_bp.route('/appointments')
+def _flatten_appointment(a):
+    """Flatten nested patients/services joins into flat fields."""
+    if not a:
+        return a
+    p = a.get('patients') or {}
+    s = a.get('services') or {}
+    return {
+        **{k: v for k, v in a.items() if k not in ('patients', 'services')},
+        'patient_name': f"{p.get('first_name', '')} {p.get('last_name', '')}".strip() if p else '',
+        'service_name': s.get('name', '') if isinstance(s, dict) else '',
+    }
+
+
+def _enrich_patient(p):
+    if not p:
+        return p
+    return {
+        **p,
+        'full_name': f"{p.get('first_name', '')} {p.get('last_name', '')}".strip(),
+    }
+
+
+@appointments_bp.route('/')
 @login_required
 def list_appointments():
     search = request.args.get('search', '')
@@ -14,14 +36,22 @@ def list_appointments():
     result = appointment_service.get_appointments(
         search=search, status_filter=status_filter, page=page
     )
+    result = {**result, 'data': [_flatten_appointment(a) for a in result.get('data', [])]}
     services = catalog_service.get_all_services()
-    patients = patient_service.get_patients(limit=100)['data']
-    return render_template('appointments/list.html',
-                           **result, search=search, status_filter=status_filter,
-                           services=services, patients_list=patients)
+    patients = [_enrich_patient(p) for p in patient_service.get_patients(limit=100)['data']]
+    return jsonify({
+        'success': True,
+        'data': {
+            **result,
+            'services': services,
+            'patients_list': patients,
+        },
+        'search': search,
+        'status_filter': status_filter,
+    })
 
 
-@appointments_bp.route('/api/appointments', methods=['POST'])
+@appointments_bp.route('/', methods=['POST'])
 @login_required
 def create():
     data = request.get_json()
@@ -31,7 +61,7 @@ def create():
     return jsonify({'success': False, 'error': 'שגיאה ביצירת תור'}), 400
 
 
-@appointments_bp.route('/api/appointments/<appointment_id>', methods=['PUT'])
+@appointments_bp.route('/<appointment_id>', methods=['PUT'])
 @login_required
 def update(appointment_id):
     data = request.get_json()
@@ -41,7 +71,7 @@ def update(appointment_id):
     return jsonify({'success': False, 'error': 'שגיאה בעדכון תור'}), 400
 
 
-@appointments_bp.route('/api/appointments/<appointment_id>', methods=['DELETE'])
+@appointments_bp.route('/<appointment_id>', methods=['DELETE'])
 @login_required
 def delete(appointment_id):
     try:
